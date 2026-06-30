@@ -7,8 +7,10 @@ import { MobileProjectTabs } from "@/components/system/MobileProjectTabs";
 import { NewProjectModal } from "@/components/system/NewProjectModal";
 import { AddIssueModal } from "@/components/system/AddIssueModal";
 import { DeleteProjectDialog } from "@/components/system/DeleteProjectDialog";
-
 import { LeaveConfirmationModal } from "@/components/system/LeaveConfirmationModal";
+
+// NOTE: NotepadHUD is intentionally excluded from this repo.
+// It is a local desktop-app exclusive feature and lives only in the pywebview build.
 
 export const Route = createFileRoute("/")({
   component: TheSystem,
@@ -21,7 +23,6 @@ function TheSystem() {
   const [addIssueOpen, setAddIssueOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
-
 
   // Global Esc key to open exit application dialog (if no other modal is open)
   useEffect(() => {
@@ -60,8 +61,6 @@ function TheSystem() {
       </div>
     );
   }
-
-
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row bg-[#05060f] p-0 md:p-4 md:gap-4">
@@ -144,7 +143,6 @@ function TheSystem() {
           }
         }}
       />
-
     </div>
   );
 }
