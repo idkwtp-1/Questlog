@@ -51,7 +51,7 @@ if ($env:ENV -eq "production" -and -not (Test-Path "$PSScriptRoot\dist\index.htm
 
 # Start Vite server in the background
 if ($env:ENV -eq "production") {
-    $devProcess = Start-Process python -ArgumentList "-m http.server 8083 --directory dist" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
+    $devProcess = Start-Process $npm -ArgumentList "run preview -- --port 8083" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
 } else {
     $devProcess = Start-Process $npm -ArgumentList "run dev" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
 }

@@ -5,7 +5,7 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  base: "./",
+  base: "/Questlog/",
   plugins: [
     TanStackRouterVite({
       routesDirectory: "./src/routes",

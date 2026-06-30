@@ -12,22 +12,6 @@ import { LeaveConfirmationModal } from "@/components/system/LeaveConfirmationMod
 import { NotepadHUD } from "@/components/system/NotepadHUD";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "QuestLog — Quest Tracker" },
-      {
-        name: "description",
-        content:
-          "A minimalist Solo Leveling-inspired personal project and issue tracker. All data lives in your browser.",
-      },
-      { property: "og:title", content: "QuestLog — Quest Tracker" },
-      {
-        property: "og:description",
-        content:
-          "A minimalist Solo Leveling-inspired personal project and issue tracker. All data lives in your browser.",
-      },
-    ],
-  }),
   component: TheSystem,
 });
 
