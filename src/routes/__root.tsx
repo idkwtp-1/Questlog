@@ -81,7 +81,7 @@ function RootComponent() {
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").then(
+        navigator.serviceWorker.register("/Questlog/sw.js").then(
           (reg) => {
             console.log("[QuestLog PWA] ServiceWorker registered: ", reg.scope);
           },
