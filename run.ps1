@@ -44,14 +44,14 @@ if (-not $npm -or $npm.EndsWith(".ps1")) {
     }
 }
 
-# Build application if in production mode and dist/client folder doesn't exist
-if ($env:ENV -eq "production" -and -not (Test-Path "$PSScriptRoot\dist\client")) {
+# Build application if in production mode and dist folder doesn't exist
+if ($env:ENV -eq "production" -and -not (Test-Path "$PSScriptRoot\dist\index.html")) {
     Start-Process $npm -ArgumentList "run build" -WorkingDirectory $PSScriptRoot -NoNewWindow -Wait
 }
 
 # Start Vite server in the background
 if ($env:ENV -eq "production") {
-    $devProcess = Start-Process node -ArgumentList "start-prod.js" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
+    $devProcess = Start-Process python -ArgumentList "-m http.server 8083 --directory dist" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
 } else {
     $devProcess = Start-Process $npm -ArgumentList "run dev" -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
 }

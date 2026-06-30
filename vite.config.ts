@@ -1,11 +1,21 @@
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tsconfigPaths from "vite-tsconfig-paths";
+import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "./",
   plugins: [
+    TanStackRouterVite({
+      routesDirectory: "./src/routes",
+      generatedRouteTree: "./src/routeTree.gen.ts",
+    }),
+    react(),
+    tsconfigPaths(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: false, // We register it manually in client code
+      injectRegister: false, // We register it manually in __root.tsx
       manifest: {
         name: "QuestLog",
         short_name: "QuestLog",
@@ -13,10 +23,10 @@ export default defineConfig({
         theme_color: "#05060f",
         background_color: "#05060f",
         display: "standalone",
-        start_url: "/",
+        start_url: "/Questlog/",
         icons: [
           {
-            src: "/favicon.ico",
+            src: "/Questlog/favicon.ico",
             sizes: "64x64 32x32 24x24 16x16",
             type: "image/x-icon",
           },
@@ -24,13 +34,7 @@ export default defineConfig({
       },
     }),
   ],
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-  },
-  nitro: {
-    preset: "vercel",
+  build: {
+    outDir: "dist",
   },
 });
-
