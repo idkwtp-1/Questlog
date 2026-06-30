@@ -7,7 +7,6 @@ export interface Project {
   id: string;
   name: string;
   createdAt: number;
-  notepad?: string;
 }
 
 export interface Issue {
@@ -252,42 +251,7 @@ export function useSystemStore() {
     [],
   );
 
-  const updateProjectNotepad = useCallback(
-    (projectId: string, text: string) => {
-      setData((d) => ({
-        ...d,
-        projects: d.projects.map((p) =>
-          p.id === projectId ? { ...p, notepad: text } : p,
-        ),
-      }));
 
-      supabase
-        .from("projects")
-        .update({ notepad: text })
-        .eq("id", projectId)
-        .then(({ error }) => {
-          if (error) console.error("[QuestLog] Failed to update notepad:", error);
-        });
-    },
-    [],
-  );
-
-  const spawnNotepadWidget = useCallback(() => {
-    // pywebview API helper
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = (window as any).pywebview?.api;
-    if (api && typeof api.spawn_notepad_widget === "function") {
-      api.spawn_notepad_widget();
-    }
-  }, []);
-
-  const closeNotepadWidget = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = (window as any).pywebview?.api;
-    if (api && typeof api.close_notepad_widget === "function") {
-      api.close_notepad_widget();
-    }
-  }, []);
 
   return {
     hydrated,
@@ -299,9 +263,6 @@ export function useSystemStore() {
     toggleIssue,
     deleteIssue,
     updateIssue,
-    updateProjectNotepad,
-    spawnNotepadWidget,
-    closeNotepadWidget,
   };
 }
 

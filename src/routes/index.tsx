@@ -9,7 +9,6 @@ import { AddIssueModal } from "@/components/system/AddIssueModal";
 import { DeleteProjectDialog } from "@/components/system/DeleteProjectDialog";
 
 import { LeaveConfirmationModal } from "@/components/system/LeaveConfirmationModal";
-import { NotepadHUD } from "@/components/system/NotepadHUD";
 
 export const Route = createFileRoute("/")({
   component: TheSystem,
@@ -22,14 +21,7 @@ function TheSystem() {
   const [addIssueOpen, setAddIssueOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [isWidget, setIsWidget] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("widget") === "true") {
-      setIsWidget(true);
-    }
-  }, []);
 
   // Global Esc key to open exit application dialog (if no other modal is open)
   useEffect(() => {
@@ -63,27 +55,13 @@ function TheSystem() {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#05060f]">
         <p className="sys-label text-sm font-semibold tracking-[0.2em] text-[#4fc3f7] animate-pulse">
-          {isWidget ? "LOAD_NOTEPAD_WIDGET..." : "INITIALIZING SYSTEM..."}
+          INITIALIZING SYSTEM...
         </p>
       </div>
     );
   }
 
-  if (isWidget) {
-    return (
-      <div className="h-screen w-full bg-[#05060f] overflow-hidden select-none">
-        <NotepadHUD
-          projects={store.projects}
-          selectedProjectId={selectedId}
-          onSelectProject={handleSelectProject}
-          onAddIssue={store.addIssue}
-          onUpdateNotepad={store.updateProjectNotepad}
-          isWidget={true}
-          onCloseWidget={store.closeNotepadWidget}
-        />
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row bg-[#05060f] p-0 md:p-4 md:gap-4">
@@ -167,14 +145,6 @@ function TheSystem() {
         }}
       />
 
-      <NotepadHUD
-        projects={store.projects}
-        selectedProjectId={selectedId}
-        onSelectProject={handleSelectProject}
-        onAddIssue={store.addIssue}
-        onUpdateNotepad={store.updateProjectNotepad}
-        onSpawnWidget={store.spawnNotepadWidget}
-      />
     </div>
   );
 }
