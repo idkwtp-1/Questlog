@@ -1,0 +1,270 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sys-accent: #4fc3f7;
+  --color-sys-purple: #7c4dff;
+  --color-sys-text: #e2e8f0;
+  --color-sys-dim: #64748b;
+  --color-rank-low: #4fc3f7;
+  --color-rank-med: #facc15;
+  --color-rank-high: #f97316;
+  --color-rank-crit: #e040fb;
+}
+
+:root {
+  --radius: 6px;
+  --background: oklch(0.05 0.03 270);
+  --foreground: oklch(0.92 0.02 240);
+  --card: oklch(0.1 0.04 260);
+  --card-foreground: oklch(0.92 0.02 240);
+  --popover: oklch(0.1 0.04 260);
+  --popover-foreground: oklch(0.92 0.02 240);
+  --primary: oklch(0.78 0.14 230);
+  --primary-foreground: oklch(0.1 0.04 260);
+  --secondary: oklch(0.2 0.04 260);
+  --secondary-foreground: oklch(0.92 0.02 240);
+  --muted: oklch(0.18 0.04 260);
+  --muted-foreground: oklch(0.55 0.04 250);
+  --accent: oklch(0.78 0.14 230);
+  --accent-foreground: oklch(0.1 0.04 260);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 240);
+  --border: oklch(0.78 0.14 230 / 18%);
+  --input: oklch(0.2 0.04 260);
+  --ring: oklch(0.78 0.14 230);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background-color: #05060f;
+    color: #e2e8f0;
+    font-family: "Rajdhani", "Inter", system-ui, sans-serif;
+  }
+
+  body {
+    position: relative;
+    min-height: 100vh;
+    background-image: radial-gradient(
+      ellipse 65% 50% at 50% 42%,
+      rgba(25, 75, 200, 0.4) 0%,
+      rgba(70, 15, 130, 0.2) 40%,
+      #05060f 72%
+    );
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      ellipse 55% 40% at 50% 42%,
+      rgba(79, 195, 247, 0.18) 0%,
+      rgba(124, 77, 255, 0.1) 45%,
+      transparent 75%
+    );
+    animation: portalPulse 4s ease-in-out infinite;
+  }
+
+  #root,
+  main {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@layer utilities {
+  .sys-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sys-panel {
+    background: rgba(8, 13, 28, 0.65);
+    border: 1px solid rgba(79, 195, 247, 0.25);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.05),
+      0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  }
+
+  .sys-glass-card {
+    background: rgba(13, 19, 44, 0.4);
+    border: 1px solid rgba(79, 195, 247, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  .sys-glass-card:hover {
+    background: rgba(13, 19, 44, 0.6);
+    border-color: rgba(79, 195, 247, 0.35);
+    transform: translateY(-2px);
+    box-shadow:
+      0 8px 24px -6px rgba(79, 195, 247, 0.15),
+      inset 0 0 12px rgba(79, 195, 247, 0.05);
+  }
+
+  .sys-glow {
+    box-shadow: 0 0 16px rgba(79, 195, 247, 0.4);
+  }
+
+  .sys-glow-crit {
+    box-shadow: 0 0 12px rgba(224, 64, 251, 0.6);
+  }
+
+  .sys-text-glow {
+    text-shadow: 0 0 8px rgba(79, 195, 247, 0.6);
+  }
+
+  .sys-text-glow-purple {
+    text-shadow: 0 0 8px rgba(124, 77, 255, 0.6);
+  }
+
+  .sys-border-glow {
+    border-color: rgba(79, 195, 247, 0.6);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.2);
+  }
+
+  .sys-fade-in {
+    animation: sysFadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .sys-pop-in {
+    animation: sysPopIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .sys-hud-scan::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      transparent 50%,
+      rgba(79, 195, 247, 0.04) 50%,
+      transparent 51%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+  }
+
+  /* Stagger delays */
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+  .delay-400 {
+    animation-delay: 400ms;
+  }
+  .delay-500 {
+    animation-delay: 500ms;
+  }
+}
+
+@keyframes portalPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes sysFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sysPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Custom Scrollbar Styles matching the Liquid FUI Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(8, 12, 28, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 195, 247, 0.2);
+  border-radius: 3px;
+  border: 1px solid rgba(79, 195, 247, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 195, 247, 0.45);
+  border-color: rgba(79, 195, 247, 0.3);
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.3);
+}
+
+/* Firefox scrollbar compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79, 195, 247, 0.25) rgba(8, 12, 28, 0.5);
+}
