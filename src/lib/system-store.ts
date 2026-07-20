@@ -25,7 +25,17 @@ interface SystemData {
   issues: Issue[];
 }
 
+const STORAGE_DATA_KEY = "questlog_data_v1";
+const STORAGE_QUEUE_KEY = "questlog_sync_queue_v1";
 const EMPTY: SystemData = { projects: [], issues: [] };
+
+export type SyncAction =
+  | { type: "insert_project"; payload: Project }
+  | { type: "delete_project"; id: string }
+  | { type: "insert_issue"; payload: Issue }
+  | { type: "update_issue"; id: string; patch: Partial<Issue> }
+  | { type: "delete_issue"; id: string }
+  | { type: "update_notepad"; projectId: string; notepad: string };
 
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -41,112 +51,297 @@ export const PRIORITY_WEIGHT: Record<Priority, number> = {
   low: 1,
 };
 
-export function useSystemStore() {
-  const [data, setData] = useState<SystemData>(EMPTY);
-  const [hydrated, setHydrated] = useState(false);
+// ------------------------------------------------------------------
+// LocalStorage Utilities
+// ------------------------------------------------------------------
+function getStoredData(): SystemData {
+  if (typeof window === "undefined") return EMPTY;
+  try {
+    const raw = localStorage.getItem(STORAGE_DATA_KEY);
+    if (!raw) return EMPTY;
+    return JSON.parse(raw) as SystemData;
+  } catch (err) {
+    console.error("[QuestLog Storage] Failed to read local data:", err);
+    return EMPTY;
+  }
+}
 
-  // ------------------------------------------------------------------
-  // Load and subscribe from/to Supabase
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    let active = true;
+function saveStoredData(data: SystemData) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_DATA_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error("[QuestLog Storage] Failed to write local data:", err);
+  }
+}
 
-    async function loadData() {
-      try {
-        const [projectsRes, issuesRes] = await Promise.all([
-          supabase.from("projects").select("*"),
-          supabase.from("issues").select("*"),
-        ]);
+function getSyncQueue(): SyncAction[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_QUEUE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as SyncAction[];
+  } catch (err) {
+    console.error("[QuestLog Storage] Failed to read sync queue:", err);
+    return [];
+  }
+}
 
-        if (!active) return;
+function saveSyncQueue(queue: SyncAction[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(queue));
+  } catch (err) {
+    console.error("[QuestLog Storage] Failed to write sync queue:", err);
+  }
+}
 
-        if (projectsRes.error) throw projectsRes.error;
-        if (issuesRes.error) throw issuesRes.error;
+function enqueueAction(action: SyncAction) {
+  const queue = getSyncQueue();
+  queue.push(action);
+  saveSyncQueue(queue);
+}
 
-        setData({
-          projects: projectsRes.data || [],
-          issues: issuesRes.data || [],
+// ------------------------------------------------------------------
+// Supabase Sync Processor
+// ------------------------------------------------------------------
+async function processSyncAction(action: SyncAction): Promise<boolean> {
+  try {
+    switch (action.type) {
+      case "insert_project": {
+        const { error } = await supabase.from("projects").insert({
+          id: action.payload.id,
+          name: action.payload.name,
+          createdAt: action.payload.createdAt,
         });
-        setHydrated(true);
-      } catch (err) {
-        console.error("[QuestLog] Failed to load data from Supabase:", err);
+        if (error) throw error;
+        break;
+      }
+      case "delete_project": {
+        const { error } = await supabase.from("projects").delete().eq("id", action.id);
+        if (error) throw error;
+        break;
+      }
+      case "insert_issue": {
+        const { error } = await supabase.from("issues").insert({
+          id: action.payload.id,
+          projectId: action.payload.projectId,
+          title: action.payload.title,
+          description: action.payload.description,
+          priority: action.payload.priority,
+          done: action.payload.done,
+          createdAt: action.payload.createdAt,
+        });
+        if (error) throw error;
+        break;
+      }
+      case "update_issue": {
+        const { error } = await supabase.from("issues").update(action.patch).eq("id", action.id);
+        if (error) throw error;
+        break;
+      }
+      case "delete_issue": {
+        const { error } = await supabase.from("issues").delete().eq("id", action.id);
+        if (error) throw error;
+        break;
+      }
+      case "update_notepad": {
+        const { error } = await supabase
+          .from("projects")
+          .update({ notepad: action.notepad })
+          .eq("id", action.projectId);
+        if (error) throw error;
+        break;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("[QuestLog Sync] Action failed:", action, err);
+    return false;
+  }
+}
+
+let isSyncing = false;
+async function flushSyncQueue(): Promise<boolean> {
+  if (isSyncing || typeof window === "undefined" || !navigator.onLine) return false;
+  isSyncing = true;
+  try {
+    const queue = getSyncQueue();
+    if (queue.length === 0) {
+      isSyncing = false;
+      return true;
+    }
+
+    const remaining: SyncAction[] = [];
+    let allSucceeded = true;
+
+    for (let i = 0; i < queue.length; i++) {
+      const action = queue[i];
+      const success = await processSyncAction(action);
+      if (!success) {
+        allSucceeded = false;
+        remaining.push(...queue.slice(i));
+        break;
       }
     }
 
-    loadData();
+    saveSyncQueue(remaining);
+    return allSucceeded;
+  } finally {
+    isSyncing = false;
+  }
+}
 
-    // Subscribe to Postgres changes on both tables
+// ------------------------------------------------------------------
+// System Store Hook
+// ------------------------------------------------------------------
+export function useSystemStore() {
+  const [data, setData] = useState<SystemData>(getStoredData);
+  const [hydrated, setHydrated] = useState(true);
+
+  // Sync helper that updates state, localStorage, and triggers queue execution
+  const dispatchMutation = useCallback(
+    (updater: (prev: SystemData) => { nextData: SystemData; action: SyncAction | null }) => {
+      let createdAction: SyncAction | null = null;
+      setData((prev) => {
+        const { nextData, action } = updater(prev);
+        createdAction = action;
+        saveStoredData(nextData);
+        return nextData;
+      });
+
+      if (createdAction) {
+        enqueueAction(createdAction);
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          flushSyncQueue().then((success) => {
+            if (success && getSyncQueue().length === 0) {
+              loadDataFromSupabase();
+            }
+          });
+        }
+      }
+    },
+    [],
+  );
+
+  const loadDataFromSupabase = useCallback(async () => {
+    // Skip pulling from remote if there are pending offline mutations to preserve local edits
+    if (getSyncQueue().length > 0 || (typeof navigator !== "undefined" && !navigator.onLine)) {
+      return;
+    }
+
+    try {
+      const [projectsRes, issuesRes] = await Promise.all([
+        supabase.from("projects").select("*"),
+        supabase.from("issues").select("*"),
+      ]);
+
+      if (projectsRes.error) throw projectsRes.error;
+      if (issuesRes.error) throw issuesRes.error;
+
+      const remoteData: SystemData = {
+        projects: projectsRes.data || [],
+        issues: issuesRes.data || [],
+      };
+
+      setData(remoteData);
+      saveStoredData(remoteData);
+      setHydrated(true);
+    } catch (err) {
+      console.error("[QuestLog] Failed to load remote data:", err);
+    }
+  }, []);
+
+  // Sync & Realtime Subscription lifecycle
+  useEffect(() => {
+    // 1. Flush any pending queue & pull fresh data if online
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      flushSyncQueue().then(() => {
+        loadDataFromSupabase();
+      });
+    }
+
+    // 2. Browser online event handler
+    const handleOnline = () => {
+      console.log("[QuestLog] Internet connection restored. Processing offline sync queue...");
+      flushSyncQueue().then((success) => {
+        if (success) {
+          loadDataFromSupabase();
+        }
+      });
+    };
+
+    window.addEventListener("online", handleOnline);
+
+    // 3. Realtime Postgres change subscriptions
     const channel = supabase
       .channel("schema-db-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "projects" },
         () => {
-          loadData();
-        }
+          if (getSyncQueue().length === 0) {
+            loadDataFromSupabase();
+          }
+        },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "issues" },
         () => {
-          loadData();
-        }
+          if (getSyncQueue().length === 0) {
+            loadDataFromSupabase();
+          }
+        },
       )
       .subscribe();
 
     return () => {
-      active = false;
+      window.removeEventListener("online", handleOnline);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadDataFromSupabase]);
 
   // ------------------------------------------------------------------
-  // Store operations
+  // Store Operations
   // ------------------------------------------------------------------
-  const addProject = useCallback((name: string): Project | null => {
-    const trimmed = name.trim();
-    if (!trimmed) return null;
-    let created: Project | null = null;
-    
-    setData((d) => {
-      const dup = d.projects.some(
-        (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
-      );
-      if (dup) return d;
-      created = { id: uid(), name: trimmed, createdAt: Date.now() };
-      return { ...d, projects: [...d.projects, created] };
-    });
+  const addProject = useCallback(
+    (name: string): Project | null => {
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      let created: Project | null = null;
 
-    if (created) {
-      const newProj = created;
-      supabase
-        .from("projects")
-        .insert({
-          id: newProj.id,
-          name: newProj.name,
-          createdAt: newProj.createdAt,
-        })
-        .then(({ error }) => {
-          if (error) console.error("[QuestLog] Failed to add project:", error);
-        });
-    }
-    return created;
-  }, []);
+      dispatchMutation((prev) => {
+        const dup = prev.projects.some(
+          (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+        if (dup) return { nextData: prev, action: null };
 
-  const deleteProject = useCallback((id: string) => {
-    setData((d) => ({
-      projects: d.projects.filter((p) => p.id !== id),
-      issues: d.issues.filter((i) => i.projectId !== id),
-    }));
-
-    supabase
-      .from("projects")
-      .delete()
-      .eq("id", id)
-      .then(({ error }) => {
-        if (error) console.error("[QuestLog] Failed to delete project:", error);
+        created = { id: uid(), name: trimmed, createdAt: Date.now() };
+        const nextData = { ...prev, projects: [...prev.projects, created] };
+        return {
+          nextData,
+          action: { type: "insert_project", payload: created },
+        };
       });
-  }, []);
+
+      return created;
+    },
+    [dispatchMutation],
+  );
+
+  const deleteProject = useCallback(
+    (id: string) => {
+      dispatchMutation((prev) => ({
+        nextData: {
+          projects: prev.projects.filter((p) => p.id !== id),
+          issues: prev.issues.filter((i) => i.projectId !== id),
+        },
+        action: { type: "delete_project", id },
+      }));
+    },
+    [dispatchMutation],
+  );
 
   const addIssue = useCallback(
     (
@@ -167,65 +362,49 @@ export function useSystemStore() {
         createdAt: Date.now(),
       };
 
-      setData((d) => ({
-        ...d,
-        issues: [...d.issues, newIssue],
+      dispatchMutation((prev) => ({
+        nextData: {
+          ...prev,
+          issues: [...prev.issues, newIssue],
+        },
+        action: { type: "insert_issue", payload: newIssue },
       }));
-
-      supabase
-        .from("issues")
-        .insert({
-          id: newIssue.id,
-          projectId: newIssue.projectId,
-          title: newIssue.title,
-          description: newIssue.description,
-          priority: newIssue.priority,
-          done: newIssue.done,
-          createdAt: newIssue.createdAt,
-        })
-        .then(({ error }) => {
-          if (error) console.error("[QuestLog] Failed to add issue:", error);
-        });
     },
-    [],
+    [dispatchMutation],
   );
 
-  const toggleIssue = useCallback((id: string) => {
-    let nextDone = false;
-    setData((d) => {
-      const updatedIssues = d.issues.map((i) => {
-        if (i.id === id) {
-          nextDone = !i.done;
-          return { ...i, done: nextDone };
-        }
-        return i;
+  const toggleIssue = useCallback(
+    (id: string) => {
+      let nextDone = false;
+      dispatchMutation((prev) => {
+        const updatedIssues = prev.issues.map((i) => {
+          if (i.id === id) {
+            nextDone = !i.done;
+            return { ...i, done: nextDone };
+          }
+          return i;
+        });
+        return {
+          nextData: { ...prev, issues: updatedIssues },
+          action: { type: "update_issue", id, patch: { done: nextDone } },
+        };
       });
-      return { ...d, issues: updatedIssues };
-    });
+    },
+    [dispatchMutation],
+  );
 
-    supabase
-      .from("issues")
-      .update({ done: nextDone })
-      .eq("id", id)
-      .then(({ error }) => {
-        if (error) console.error("[QuestLog] Failed to toggle issue:", error);
-      });
-  }, []);
-
-  const deleteIssue = useCallback((id: string) => {
-    setData((d) => ({
-      ...d,
-      issues: d.issues.filter((i) => i.id !== id),
-    }));
-
-    supabase
-      .from("issues")
-      .delete()
-      .eq("id", id)
-      .then(({ error }) => {
-        if (error) console.error("[QuestLog] Failed to delete issue:", error);
-      });
-  }, []);
+  const deleteIssue = useCallback(
+    (id: string) => {
+      dispatchMutation((prev) => ({
+        nextData: {
+          ...prev,
+          issues: prev.issues.filter((i) => i.id !== id),
+        },
+        action: { type: "delete_issue", id },
+      }));
+    },
+    [dispatchMutation],
+  );
 
   const updateIssue = useCallback(
     (
@@ -236,40 +415,30 @@ export function useSystemStore() {
         priority?: Priority;
       },
     ) => {
-      setData((d) => ({
-        ...d,
-        issues: d.issues.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+      dispatchMutation((prev) => ({
+        nextData: {
+          ...prev,
+          issues: prev.issues.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+        },
+        action: { type: "update_issue", id, patch },
       }));
-
-      supabase
-        .from("issues")
-        .update(patch)
-        .eq("id", id)
-        .then(({ error }) => {
-          if (error) console.error("[QuestLog] Failed to update issue:", error);
-        });
     },
-    [],
+    [dispatchMutation],
   );
 
   const updateProjectNotepad = useCallback(
     (projectId: string, text: string) => {
-      setData((d) => ({
-        ...d,
-        projects: d.projects.map((p) =>
-          p.id === projectId ? { ...p, notepad: text } : p,
-        ),
+      dispatchMutation((prev) => ({
+        nextData: {
+          ...prev,
+          projects: prev.projects.map((p) =>
+            p.id === projectId ? { ...p, notepad: text } : p,
+          ),
+        },
+        action: { type: "update_notepad", projectId, notepad: text },
       }));
-
-      supabase
-        .from("projects")
-        .update({ notepad: text })
-        .eq("id", projectId)
-        .then(({ error }) => {
-          if (error) console.error("[QuestLog] Failed to update notepad:", error);
-        });
     },
-    [],
+    [dispatchMutation],
   );
 
   const spawnNotepadWidget = useCallback(() => {
