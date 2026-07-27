@@ -23,10 +23,23 @@ export function MobileProjectTabs({
         [SYSTEM]
       </h1>
       {projects.map((p) => {
-        const open = issues.filter(
+        const openIssues = issues.filter(
           (i) => i.projectId === p.id && !i.done,
-        ).length;
+        );
+        const open = openIssues.length;
         const active = p.id === selectedId;
+
+        let rank = { label: "C", color: "#4fc3f7" };
+        if (openIssues.some((i) => i.priority === "critical")) {
+          rank = { label: "S", color: "#e040fb" };
+        } else if (openIssues.some((i) => i.priority === "high")) {
+          rank = { label: "A", color: "#f97316" };
+        } else if (openIssues.some((i) => i.priority === "medium")) {
+          rank = { label: "B", color: "#facc15" };
+        } else if (open === 0) {
+          rank = { label: "CLEAR", color: "#64748b" };
+        }
+
         return (
           <button
             key={p.id}
@@ -38,9 +51,18 @@ export function MobileProjectTabs({
               boxShadow: active ? "0 0 12px rgba(79,195,247,0.45)" : undefined,
               border: active
                 ? "1px solid #4fc3f7"
-                : "1px solid rgba(79,195,247,0.1)",
+                : `1px solid ${rank.color}40`,
             }}
           >
+            <span
+              className="rounded px-1 text-[8px] font-extrabold"
+              style={{
+                color: active ? "#05060f" : rank.color,
+                backgroundColor: active ? "rgba(5,6,15,0.2)" : `${rank.color}20`,
+              }}
+            >
+              [{rank.label}]
+            </span>
             <span className="max-w-[120px] truncate">{p.name}</span>
             <span className="opacity-70">({open})</span>
           </button>

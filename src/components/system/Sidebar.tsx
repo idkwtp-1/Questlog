@@ -58,6 +58,22 @@ export function Sidebar({
             {projects.map((p) => {
               const c = counts(p.id);
               const active = p.id === selectedId;
+
+              // Compute rank based on highest active issue priority
+              const openIssues = issues.filter(
+                (i) => i.projectId === p.id && !i.done,
+              );
+              let rank = { label: "CLEAR", color: "#64748b", badgeBg: "rgba(100,116,139,0.1)" };
+              if (openIssues.some((i) => i.priority === "critical")) {
+                rank = { label: "S-RANK", color: "#e040fb", badgeBg: "rgba(224,64,251,0.15)" };
+              } else if (openIssues.some((i) => i.priority === "high")) {
+                rank = { label: "A-RANK", color: "#f97316", badgeBg: "rgba(249,115,22,0.15)" };
+              } else if (openIssues.some((i) => i.priority === "medium")) {
+                rank = { label: "B-RANK", color: "#facc15", badgeBg: "rgba(250,204,21,0.15)" };
+              } else if (openIssues.length > 0) {
+                rank = { label: "C-RANK", color: "#4fc3f7", badgeBg: "rgba(79,195,247,0.15)" };
+              }
+
               return (
                 <li key={p.id} className="sys-fade-in">
                   <div
@@ -68,16 +84,23 @@ export function Sidebar({
                         : "rgba(13, 19, 44, 0.2)",
                       border: active
                         ? "1px solid rgba(79, 195, 247, 0.35)"
-                        : "1px solid rgba(79, 195, 247, 0.05)",
+                        : `1px solid ${rank.color}25`,
                       boxShadow: active
                         ? "0 0 16px rgba(79, 195, 247, 0.12)"
                         : undefined,
                     }}
                   >
-                    {/* Active neon highlight strip */}
-                    {active && (
-                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#4fc3f7] shadow-[0_0_8px_rgba(79,195,247,0.8)]" />
-                    )}
+                    {/* Left neon highlight strip */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300"
+                      style={{
+                        backgroundColor: active ? "#4fc3f7" : rank.color,
+                        opacity: active ? 1 : 0.6,
+                        boxShadow: active
+                          ? "0 0 8px rgba(79,195,247,0.8)"
+                          : `0 0 6px ${rank.color}80`,
+                      }}
+                    />
 
                     <button
                       onClick={() => onSelect(p.id)}
@@ -89,8 +112,21 @@ export function Sidebar({
                       >
                         {p.name}
                       </span>
+
+                      {/* System Rank Badge */}
                       <span
-                        className="sys-label shrink-0 text-[10px] font-bold tracking-wider"
+                        className="sys-label shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold tracking-wider border"
+                        style={{
+                          color: rank.color,
+                          borderColor: `${rank.color}40`,
+                          backgroundColor: rank.badgeBg,
+                        }}
+                      >
+                        {rank.label}
+                      </span>
+
+                      <span
+                        className="sys-label shrink-0 text-[10px] font-bold tracking-wider ml-0.5"
                         style={{ color: active ? "#4fc3f7" : "#64748b" }}
                       >
                         {c.open}
