@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useSystemStore } from "@/lib/system-store";
+import { useSystemStore, sortProjects } from "@/lib/system-store";
 import { Sidebar } from "@/components/system/Sidebar";
 import { MainPanel } from "@/components/system/MainPanel";
 import { MobileProjectTabs } from "@/components/system/MobileProjectTabs";
@@ -23,6 +23,8 @@ function TheSystem() {
   const [addIssueOpen, setAddIssueOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+
+  const sortedProjects = sortProjects(store.projects, store.issues);
 
   // Global Esc key to open exit application dialog (if no other modal is open)
   useEffect(() => {
@@ -66,7 +68,7 @@ function TheSystem() {
     <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row bg-[#05060f] p-0 md:p-4 md:gap-4">
       <div className="hidden md:block md:h-full shrink-0">
         <Sidebar
-          projects={store.projects}
+          projects={sortedProjects}
           issues={store.issues}
           selectedId={selectedId}
           onSelect={handleSelectProject}
@@ -77,7 +79,7 @@ function TheSystem() {
 
       <div className="md:hidden">
         <MobileProjectTabs
-          projects={store.projects}
+          projects={sortedProjects}
           issues={store.issues}
           selectedId={selectedId}
           onSelect={handleSelectProject}

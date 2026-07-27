@@ -482,3 +482,21 @@ export function sortIssues(issues: Issue[]): Issue[] {
     return a.createdAt - b.createdAt;
   });
 }
+
+export function sortProjects(projects: Project[], issues: Issue[]): Project[] {
+  return [...projects].sort((a, b) => {
+    const aScore = issues
+      .filter((i) => i.projectId === a.id && !i.done)
+      .reduce((sum, i) => sum + PRIORITY_WEIGHT[i.priority], 0);
+
+    const bScore = issues
+      .filter((i) => i.projectId === b.id && !i.done)
+      .reduce((sum, i) => sum + PRIORITY_WEIGHT[i.priority], 0);
+
+    if (bScore !== aScore) {
+      return bScore - aScore;
+    }
+
+    return b.createdAt - a.createdAt;
+  });
+}
